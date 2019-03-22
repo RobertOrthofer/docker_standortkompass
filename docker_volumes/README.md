@@ -1,0 +1,1 @@
+In this folder Volumes for geoserver, postgis and php can be mounted.
