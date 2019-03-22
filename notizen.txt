@@ -1,0 +1,203 @@
+http://download.geofabrik.de/europe/austria-latest.osm.pbf
+
+
+
+Zweites image: photon docker ( auch im ahocevar repo )
+
+Postgis image: mdillo
+
+Postgis, Geoserver und apache brauchen mount, um Daten vom host zu bekommen
+
+
+
+####################
+Image ist der Ausgangspunkt
+Es können mehrere Container (gleichzeitig) von einem Image erstellt werden
+Ein Container wird aus einem Image mit 'docker run' erstellt
+
+Ein Container sollte immer nur einen einzigen Task ausführen
+Wenn dieser beendet wird, wird auch der Container beendet (selber Effekt wie 'docker stop')
+
+Docker Volumes werden mit -v oder --volume erstellt
+Volumes sind ein Verknüpfungspunkt zwischen dem Container und dem Host (-> mount)
+Neuen Benutzern wird die '--mount' syntax empfohlen, simpler und mehr verbose
+
+Beispiel:
+$ docker run -d \
+  --name devtest \
+  --mount source=myvol2,target=/app \
+  nginx:latest
+
+(> erstes Argument: Host, zweites Argument: Container)
+
+
+Wenn der container gestoppt wird und entfernt wird, muss die volume extra entfernt werden:
+$ docker container stop devtest
+$ docker container rm devtest
+$ docker volume rm myvol2
+
+
+(man kann auch bind mounts verwenden, diese Funktion wird aber nicht mehr empfohlen)
+
+
+
+Wenn man eine App in einem docker container hat, und diese auf einen Port hört, muss man den Port
+Mappen, damit man der Docker Container über diesen Port mit dem Host-System kommunizieren kann
+Gemappte Ports werden mit -p definiert
+Beispiel:
+Docker run -p 8080:3000
+(> gleich wie beim mounting: erstes Argument host, zweites Argument Container)
+Mit diesem Befehl ist der Docker Container vom host über localhost:8080 erreichbar, z.B.:
+curl http://localhost:8080
+
+Mit 'docker inspect containerName' sieht man die ports
+
+
+
+
+Alle diese Befehle können in einem Dockerfile zusammengefasst werden (um aus einem Image einen 
+Funktionierenden Container zu machen)
+Dockerfiles fangen immer mit einem "FROM" an
+
+
+EXPOSE: der Port, der gemappt werden soll
+CMD: Command, der vom container ausgeführt wird, wenn der container ready ist
+
+
+Ablauf: zuerst wird aus dem Dockerfile erst ein Dockerimage erstellt, mit 'docker build'
+Beispiel:
+Docker build -t nodejs-app .
+
+Dann wird docker run ausgeführt, um das image als laufenden container zu starten
+
+
+##############
+Docker Compose
+##############
+Beispiel:
+
+version: '3'
+
+services:
+  wordpress:
+    image: wordpress:4.9.4-php7.2-apache
+    environment:
+      - WORDPRESS_DB_USER=wp_user
+      - WORDPRESS_DB_PASSWORD=wp_password
+    ports:
+      - 8080:80
+    networks:
+      - wordpressnet
+    volumes: 
+      - wordpressdata:var/www/html
+
+networks:
+  wordpressnet:
+    driver: bridge
+  
+volumes:
+  wordpressdata: 
+  mariadbdata:
+  
+
+
+
+Docker Compose wird benutzt, um environments mit docker zu beschreiben
+Diese werden mit .yml files definiert (z.B. services und networks)
+
+Services: container, die man innerhalb eines docker files startet
+	Jeder Service hat genau ein image
+Networks: Isolation
+
+Auch environment variables können im compose-file gespeichert werden (wie z.B. Passwort für SQL Datenbank, accept_eula, ...)
+
+Für jeden Service kann ein Build-Context angegeben werden (oder auch einfach . ), wenn man ein custom image buildet. 
+Docker sucht in diesem Build-Context nach dem docker file (oder im aktuellen Verzeichnis wenn . )
+In jedem build eines service können unter 'args' auch environment variablen definiert werden, die als build-arguments an das
+dockerfile übergeben werden (z.B. Versionen für FROM)
+Argumente werden im docker file mit 'ARG environmentVariable' gelesen, noch vor 'FROM', dann werden sie mit $environmentVariable benutzt 
+
+
+Daten werden in Containern gespeichert. Wenn der Container removed wird, gehen die Daten verloren. 
+Deshalb werden Volumes zum Speichern von Daten verwendet.
+
+
+In 'Networks' von Services in Compose files können networks definiert werden (z.B. 'db') und auch aliases (z.B. sql)
+Dieser alias ist nützlich z.B. für den default connection string für den Verbindungsaufbau (z.B. 'Server=sql,1433;...')
+
+Innerhalb eines Networks muss z.B. eine Datenbank keinen Port exposen, wenn sie in einem internen Network ist und einen alias hat
+Dann kann man von außerhalb (auch vom host system) nicht mehr auf die Datenbank zugreifen (Sicherheitsaspekt?), aber die Programme
+innerhalb dieses Docker networks können noch mit der Datenbank kommunizieren.
+(man sieht die Networks mit 'docker network ls')
+
+Es kann innerhalb eines networks ein container auch einfach über seinen service-Namen angesprochen werden, z.b. wenn man einen hostname definieren muss
+
+Environment Variablen jedes Services werden zum Container von docker-compose gegeben
+
+Das docker-compose file with mit 'docker-compose up' ausgeführt (-d für detach)
+
+
+
+Nützliche commands:
+
+  Ausführen des docker-compose.yml (erzeugt einen container):
+    docker-compose up (--force-recreate)
+
+  Logs:
+    docker-compose logs
+
+  Anzeigen alle Container, die zum network connected sind:
+    docker network inspect networkName
+
+  Anzeigen aller running services in einem compose-container:
+    docker-compose ps
+
+  Anzeigen der logs eines docker-compose:
+    docker-compose logs
+
+  Stoppen aller container eines compose:
+    docker-compose stop
+  
+  Löschen aller stopped container eines compose:
+    docker-compose rm
+
+  Ausführen eines command-line Befehls in einem service eines compose-containers:
+    docker-compose exec serviceName commandLineBefehl
+
+  Starten der shell in einem service eines compose-containers:
+    docker-compose exec serviceName /bin/bash      (oder ash)
+
+  Anzeigen aller docker networks:
+    docker network ls
+
+  Löschen aller networks, die nicht von mindestens einem container benutzt werden:
+    docker network prune
+
+  Anzeigen aller Volumes:
+    docker volume ls
+
+  Anzeigen von configs eines docker-compose (z.B. auch environment variablen):
+    Docker-compose config
+
+  Ressourcen, die Docker im Moment benötigt:
+    Docker stats
+
+
+
+!!!!!!!
+(Möglicherweise) wichtige Information zum starten von Containern, sobald ein anderer container fertig ist:
+https://stackoverflow.com/questions/31746182/docker-compose-wait-for-container-x-before-starting-y/41854997#41854997
+
+
+
+In einem docker-compose.override.yml können Definitionen vom docker-compose.yml überschrieben werden (beziehungsweise extended)
+
+
+
+
+
+
+
+
+
+

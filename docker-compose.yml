@@ -1,0 +1,80 @@
+version: '3'
+
+services:
+  geoserver: # geoserver login:   user: admin    pw: geoserver
+    image: terrestris/geoserver:2.15.0 # standard geoserver image from dockerhub
+    ports:
+      - 18080:8080 # mapping port 18080 of host to port 8080 of container, geoserver accessible und localhost:18080/geoserver
+    container_name: geoserver
+    volumes:
+      - ./docker_volumes/geoserver/geoserver_data:/opt/geoserver_data/:Z # host : container
+      - ./docker_volumes/geoserver/additional_libs:/opt/additional_libs/:Z
+    environment:
+      - EXTRA_JAVA_OPTS=-Xms1g -Xmx2g # environment variable, will be passed to dockerfile of geoserver
+    depends_on:
+      # postgis will be started before geoserver, but does not wait to be 'ready'
+      # to do that, see here: https://docs.docker.com/compose/startup-order/
+      - postgis
+    networks: 
+      - geoserverPhpNetwork
+
+  postgis: # postgres database with postgis installed
+    image: mdillon/postgis:10-alpine #standard postgresql + postgis image from dockerhub
+    ports:
+      - 15432:5432
+    container_name: postgis
+    environment:
+      POSTGRES_USER: geoserver
+      POSTGRES_PASSWORD: geoserver
+    volumes:
+      - ./docker_volumes/postgis/postgresql_data:/var/lib/postgresql/data:Z
+    networks:
+      - geoserverPhpNetwork
+
+  php_apache:  # standard apache + php image from dockerhub
+    build:
+      context: ./docker_images/apache_php
+      dockerfile: Dockerfile
+    container_name: php_apache
+    depends_on:
+      - postgis
+      - geoserver
+    volumes:
+      - ./docker_volumes/php/:/var/www/html/
+      #- ./docker_volumes/configs/:/var/www/html/ # not available at build time!
+    ports:
+      - 8100:80
+    networks: 
+      - geoserverPhpNetwork
+      - nominatimPhotonNetwork
+
+  photon: # photon geocoder
+    build: 
+      context: ./docker_images/photon
+      dockerfile: Dockerfile
+      args:
+        host: docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nominatim
+    container_name: photon
+    depends_on: # photon depends on nominatim (to get build args)
+      - nominatim
+    ports:
+      - 12322:2322
+    networks: 
+      - nominatimPhotonNetwork
+
+  nominatim: # search engine, at the moment it defines ports 8080:8080 at build-time, no way to change them here?
+    build: ./docker_images/nominatim
+    container_name: nominatim
+      # inside build, you can define 'args' as arguments which will be used on the image (when creating the container)
+      # if we want to change 'args', we need to rebuild the container. (arg values will not be available in started containers)
+      # and 'env' variables apply after the image is built.
+    ports:
+      - 8080:8080 # 8080:8080 from nominatim docker run arguments
+    networks: 
+      - nominatimPhotonNetwork
+
+networks:
+  nominatimPhotonNetwork:
+    driver: bridge
+  geoserverPhpNetwork:
+    driver: bridge
