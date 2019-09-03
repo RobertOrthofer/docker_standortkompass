@@ -3,8 +3,6 @@ version: '3'
 services:
   geoserver: # geoserver login:   user: admin    pw: geoserver
     image: terrestris/geoserver:2.15.0 # standard geoserver image from dockerhub
-    ports:
-      - 18080:8080 # mapping port 18080 of host to port 8080 of container, geoserver accessible und localhost:18080/geoserver
     container_name: geoserver
     volumes:
       - ./docker_volumes/geoserver/geoserver_data:/opt/geoserver_data/:Z # host : container
@@ -17,6 +15,7 @@ services:
       - postgis
     networks: 
       - geoserverPhpNetwork
+
 
   postgis: # postgres database with postgis installed
     image: mdillon/postgis:10-alpine #standard postgresql + postgis image from dockerhub
@@ -57,8 +56,6 @@ services:
     container_name: photon
     depends_on: # photon depends on nominatim (to get build args)
       - nominatim
-    ports:
-      - 12322:2322
     networks: 
       - nominatimPhotonNetwork
 
