@@ -51,11 +51,12 @@ services:
     build: 
       context: ./docker_images/photon
       dockerfile: Dockerfile
-      args:
-        host: docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' nominatim
     container_name: photon
+    ports:
+      - 12322:2322
     depends_on: # photon depends on nominatim (to get build args)
       - nominatim
+    #command: /photon/startup.sh
     networks: 
       - nominatimPhotonNetwork
 
