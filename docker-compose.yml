@@ -30,10 +30,8 @@ services:
     networks:
       - geoserverPhpNetwork
 
-  php_apache:  # standard apache + php image from dockerhub
-    build:
-      context: ./docker_images/apache_php
-      dockerfile: Dockerfile
+  php_apache:  # custom apache+php for geoserver
+    image: robortgeo/apache-php-for-geoserver
     container_name: php_apache
     depends_on:
       - postgis
@@ -45,34 +43,7 @@ services:
       - 8100:80
     networks: 
       - geoserverPhpNetwork
-      - nominatimPhotonNetwork
-
-  photon: # photon geocoder
-    build: 
-      context: ./docker_images/photon
-      dockerfile: Dockerfile
-    container_name: photon
-    ports:
-      - 12322:2322
-    depends_on: # photon depends on nominatim (to get build args)
-      - nominatim
-    #command: /photon/startup.sh
-    networks: 
-      - nominatimPhotonNetwork
-
-  nominatim: # search engine, at the moment it defines ports 8080:8080 at build-time, no way to change them here?
-    build: ./docker_images/nominatim
-    container_name: nominatim
-      # inside build, you can define 'args' as arguments which will be used on the image (when creating the container)
-      # if we want to change 'args', we need to rebuild the container. (arg values will not be available in started containers)
-      # and 'env' variables apply after the image is built.
-    ports:
-      - 8080:8080 # 8080:8080 from nominatim docker run arguments
-    networks: 
-      - nominatimPhotonNetwork
 
 networks:
-  nominatimPhotonNetwork:
-    driver: bridge
   geoserverPhpNetwork:
     driver: bridge
