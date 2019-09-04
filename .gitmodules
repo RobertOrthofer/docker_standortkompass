@@ -1,0 +1,6 @@
+[submodule "docker_images/nominatim"]
+	path = docker_images/nominatim
+	url = https://github.com/ahocevar/nominatim-docker
+[submodule "docker_images/photon"]
+	path = docker_images/photon
+	url = https://github.com/ahocevar/photon-docker
