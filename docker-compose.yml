@@ -39,8 +39,10 @@ services:
     volumes:
       - ./docker_volumes/php/:/var/www/html/
       #- ./docker_volumes/configs/:/var/www/html/ # not available at build time!
+    environment:
+      - APACHE_PORT
     ports:
-      - 8100:80
+      - ${APACHE_PORT}:80
     networks: 
       - geoserverPhpNetwork
 
