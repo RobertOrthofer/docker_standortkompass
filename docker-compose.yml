@@ -17,14 +17,18 @@ services:
       - geoserverPhpNetwork
 
 
+  # possibly important info:
+  # https://stackoverflow.com/questions/34691412/docker-postgres-does-not-run-init-file-in-docker-entrypoint-initdb-d
+  # https://stackoverflow.com/questions/35679995/how-to-use-a-postgresql-container-with-existing-data
   postgis: # postgres database with postgis installed
     image: mdillon/postgis:10-alpine #standard postgresql + postgis image from dockerhub
     ports:
       - 15432:5432
     container_name: postgis
     environment:
-      POSTGRES_USER: geoserver
-      POSTGRES_PASSWORD: geoserver
+      POSTGRES_DB: testdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - ./docker_volumes/postgis/postgresql_data:/var/lib/postgresql/data:Z
     networks:
